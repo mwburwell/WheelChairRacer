@@ -26,7 +26,7 @@ public class PlayerController : MonoBehaviour
     public bool TurningOn = false;
     public float DebugLogTimer = 2f;  // logger for every __ seconds
     private float countdown = 0f;
-    private bool TimerActive = true;
+    /*private bool TimerActive = true;*/
     
     void Start()
     {
@@ -54,7 +54,7 @@ public class PlayerController : MonoBehaviour
             _lW_HasAppliedForce = true;
             _rW_HasAppliedForce = true;
             
-            acceleration = new Vector3(0f, 0f, inputHandler.LW_MoveValue * accelerationRate);
+            acceleration = transform.forward.normalized * inputHandler.LW_MoveValue * accelerationRate;
             
         }
         else if (inputHandler.LW_MoveValue < 0 && inputHandler.RW_MoveValue < 0 && !_lW_HasAppliedForce && !_rW_HasAppliedForce)
@@ -62,7 +62,7 @@ public class PlayerController : MonoBehaviour
             _lW_HasAppliedForce = true;
             _rW_HasAppliedForce = true;
             
-            acceleration = new Vector3(0f, 0f, inputHandler.LW_MoveValue * accelerationRate);
+            acceleration = transform.forward.normalized * inputHandler.RW_MoveValue * accelerationRate;
         }
         
         // TODO
@@ -78,7 +78,7 @@ public class PlayerController : MonoBehaviour
         // momentum vector needs to drift toward the forward vector
         
         
-        if (acceleration != Vector3.zero)
+        /*if (acceleration != Vector3.zero)
         {
             if (Mathf.Abs(Vector3.Angle(_momentum, transform.forward)) > 1f)
                 changeInMomentum = _momentum + (_momentum - transform.forward) + acceleration;
@@ -92,12 +92,22 @@ public class PlayerController : MonoBehaviour
             {
                 _momentum += changeInMomentum * Time.deltaTime;
             }
+        }*/
+
+        if (Vector3.Dot(_momentum, transform.forward) > 0)
+        {
+            changeInMomentum = transform.forward.normalized - _momentum.normalized + acceleration;
+        }
+        else
+        {
+            changeInMomentum = -transform.forward.normalized - _momentum.normalized + acceleration;
         }
         
+        _momentum += changeInMomentum * Time.deltaTime;
         
         if (MovementOn)
         {
-            characterController.Move((_momentum) * speed * Time.deltaTime);
+            characterController.Move((_momentum ) * speed * Time.deltaTime);
         }
 
         
@@ -166,6 +176,17 @@ public class PlayerController : MonoBehaviour
         // forward vector drifts towards the momentum vector. This will be accomplished in
         // rotation handling.
         // This will show that the vehicle is trying to stay in line with momentum.
+        /*float angleIntoMomentum = Vector3.SignedAngle(transform.forward, _momentum, Vector3.up);
+        transform.Rotate(Vector3.up, angleIntoMomentum * turnSpeed * Time.deltaTime);
+        
+        if (DebugMode)
+        {
+            if (angleIntoMomentum > 0f)
+            {
+                Debug.Log($"Angle: {angleIntoMomentum}");
+            }
+            
+        }*/
         //
         // This can be figured out later.
         // Something should be different if the momentum is pointed behind the vehicle.
@@ -179,7 +200,7 @@ public class PlayerController : MonoBehaviour
     {
         if (_momentum != null)
         {
-            Gizmos.color = Color.yellow;
+            Gizmos.color = Color.red;
             Gizmos.DrawRay(transform.position, _momentum);
             Gizmos.color = Color.blue;
             Gizmos.DrawRay(transform.position, transform.forward);
