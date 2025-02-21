@@ -12,16 +12,24 @@ public class PlayerController : MonoBehaviour
     public float topSpeed = 5f;
     public float turnSpeed = 10f;
     public float accelerationRate = 1f;
+    
+    public float lwActionTimer = 1f;
+    private float _lwCounter = 0f;
+    public float rwActionTimer = 1f;
+    private float _rwCounter = 0f;
+    
+    public float decelerationRate = 1f;
+    
+    [Header("Forces")]
     private Vector3 _momentum = Vector3.zero;
-    
-    
-    
+    private Vector3 _centrifugalForce = Vector3.zero;
+
+    private bool HoldingWheel = false;
     private bool _lW_HasAppliedForce = false;
     private bool _rW_HasAppliedForce = false;
     
     [Header("Debuging")]
     public bool DebugMode = false;
-    // momentum is still being increased
     public bool MovementOn = false;
     public bool TurningOn = false;
     public float DebugLogTimer = 2f;  // logger for every __ seconds
@@ -40,6 +48,7 @@ public class PlayerController : MonoBehaviour
         if (inputHandler)
         {
             HandleMovement();
+            // Movement_OldWay();
             HandleRotation();    
         }
         
@@ -47,95 +56,77 @@ public class PlayerController : MonoBehaviour
 
     void HandleMovement()
     {
-        Vector3 acceleration = Vector3.zero;
+        var changeInMomentum = Vector3.zero;
+        
+        if (inputHandler.LW_MoveValue > 0f || inputHandler.LW_MoveValue < 0f)
+            _lW_HasAppliedForce = true;
+        if (inputHandler.RW_MoveValue > 0f || inputHandler.RW_MoveValue < 0f)
+            _rW_HasAppliedForce = true;
 
-        if (inputHandler.LW_MoveValue > 0 && inputHandler.RW_MoveValue > 0 && !_lW_HasAppliedForce && !_rW_HasAppliedForce)
+
+        // if 
+        if (_lW_HasAppliedForce && lwActionTimer > _lwCounter)
         {
-            _lW_HasAppliedForce = true;
-            _rW_HasAppliedForce = true;
-            
-            acceleration = transform.forward.normalized * inputHandler.LW_MoveValue * accelerationRate;
-            
+            Vector3 lwAcceleration = (inputHandler.LW_MoveValue * accelerationRate * transform.forward).normalized;
+            changeInMomentum += _limitWheelTopSpeed(lwAcceleration);
+            _lwCounter += Time.deltaTime;
         }
-        else if (inputHandler.LW_MoveValue < 0 && inputHandler.RW_MoveValue < 0 && !_lW_HasAppliedForce && !_rW_HasAppliedForce)
+        if (_rW_HasAppliedForce && rwActionTimer > _rwCounter)
         {
-            _lW_HasAppliedForce = true;
-            _rW_HasAppliedForce = true;
-            
-            acceleration = transform.forward.normalized * inputHandler.RW_MoveValue * accelerationRate;
+            Vector3 rwAcceleration = (inputHandler.RW_MoveValue * accelerationRate * transform.forward).normalized;
+            changeInMomentum += _limitWheelTopSpeed(rwAcceleration);
+            _rwCounter += Time.deltaTime;
         }
+        
+        if (_momentum.magnitude > transform.forward.magnitude)
+            changeInMomentum += _alignMomentumWithForwardVector();
+        
+        
+        _momentum += changeInMomentum;
+        
         
         // TODO
-        // always the first forward acceleration applies more force than all others
-        // that may be a bug with the DeltaTime value
-        // TODO
-        // Need to change this so it always applies the forward acceleration in the way
-        // the player is facing or the transform.forward of this object. (once I have
-        // the rotation fixed)
-        Vector3 changeInMomentum = Vector3.zero;
-        
-        // forward vector and momentum vector need to try and come together
-        // momentum vector needs to drift toward the forward vector
+        // Add another main CENTRIFUGAL FORCE applied to movement aside from
+        // momentum for sliding.
         
         
-        /*if (acceleration != Vector3.zero)
-        {
-            if (Mathf.Abs(Vector3.Angle(_momentum, transform.forward)) > 1f)
-                changeInMomentum = _momentum + (_momentum - transform.forward) + acceleration;
-            else
-            {
-                changeInMomentum = _momentum + acceleration;
-            }
-
-
-            if ((_momentum + changeInMomentum).magnitude < topSpeed)
-            {
-                _momentum += changeInMomentum * Time.deltaTime;
-            }
-        }*/
-
-        if (Vector3.Dot(_momentum, transform.forward) > 0)
-        {
-            changeInMomentum = transform.forward.normalized - _momentum.normalized + acceleration;
-        }
-        else
-        {
-            changeInMomentum = -transform.forward.normalized - _momentum.normalized + acceleration;
-        }
-        
-        _momentum += changeInMomentum * Time.deltaTime;
-        
+        // Debugging If Player can move then move the Player
         if (MovementOn)
         {
-            characterController.Move((_momentum ) * speed * Time.deltaTime);
+            characterController.Move(speed * Time.deltaTime * (_momentum + transform.forward + _centrifugalForce));
         }
 
         
-        // reset acceleration booleans
-        if (inputHandler.LW_MoveValue == 0 && _lW_HasAppliedForce)
+        // reset applied Force Booleans and Wheel Action Timer Counters
+        if (_lW_HasAppliedForce && inputHandler.LW_MoveValue == 0f)
         {
             _lW_HasAppliedForce = false;
-            
+            _lwCounter = 0f;
         }
-
-        if (inputHandler.RW_MoveValue == 0 && _rW_HasAppliedForce)
+        if (_rW_HasAppliedForce && inputHandler.RW_MoveValue == 0f)
         {
             _rW_HasAppliedForce = false;
+            _rwCounter = 0f;
         }
+    }
 
-        if (DebugMode)
-        {
-            if (DebugLogTimer < countdown)
-            {
-                countdown = 0f;
-                DebugLogVector("Momentum Vector", _momentum);
-                DebugLogVector("Forward Vector", transform.forward);
-                DebugLogVector("Change Momentum Vector", changeInMomentum);
-            }
+    private Vector3 _limitWheelTopSpeed(Vector3 force)
+    {
+        // If the current magnitude of momentum isn't at TopSpeed
+        // the Player is allowed to apply force
+        if ((_momentum + force).magnitude < topSpeed)
+            return Time.deltaTime * force;
+        
+        // else no more force is applied
+        return Vector3.zero;
+    }
 
-            countdown += Time.deltaTime;
-        }
-            
+    private Vector3 _alignMomentumWithForwardVector()
+    {
+        if (Vector3.Dot(_momentum, transform.forward) > 0)
+            return transform.forward.normalized - _momentum.normalized;
+        
+        return -transform.forward.normalized - _momentum.normalized;
     }
 
     void HandleRotation()
@@ -167,11 +158,36 @@ public class PlayerController : MonoBehaviour
         // NORMALIZE
         // do I need to explain further
        
-        if (Mathf.Abs(inputHandler.RW_MoveValue - inputHandler.LW_MoveValue) < 0.1f) return;
+        //if (Mathf.Abs(inputHandler.RW_MoveValue - inputHandler.LW_MoveValue) < 0.1f) return;
         
         // add the two input vectors together
-        transform.Rotate(Vector3.up, -inputHandler.RW_MoveValue * turnSpeed * Time.deltaTime);
-        transform.Rotate(Vector3.up, inputHandler.LW_MoveValue * turnSpeed * Time.deltaTime);
+        if (inputHandler.LW_HoldTriggered)
+        {
+            if (!HoldingWheel)
+            {
+                HoldingWheel = true;
+                transform.Rotate(Vector3.up, -45 );
+            }
+            else
+            {
+                transform.Rotate(Vector3.up, -Vector3.Angle(transform.forward, _momentum) * _momentum.magnitude * Time.deltaTime);    
+            }
+            
+        }
+        else if (inputHandler.RW_HoldTriggered)
+        {
+            transform.Rotate(Vector3.up, inputHandler.LW_MoveValue * _momentum.magnitude * Time.deltaTime);
+        }
+        else
+        {
+            transform.Rotate(Vector3.up, -inputHandler.RW_MoveValue * turnSpeed * Time.deltaTime);
+            transform.Rotate(Vector3.up, inputHandler.LW_MoveValue * turnSpeed * Time.deltaTime);
+        }
+
+        if (HoldingWheel && !inputHandler.RW_HoldTriggered && !inputHandler.LW_HoldTriggered)
+        {
+            HoldingWheel = false;
+        }
         
         // forward vector drifts towards the momentum vector. This will be accomplished in
         // rotation handling.
@@ -196,6 +212,78 @@ public class PlayerController : MonoBehaviour
 
     }
 
+    void Movement_OldWay()
+    {
+         // represents the push given by the wheels
+        Vector3 acceleration = Vector3.zero;
+        
+        // First if Player is holding either wheel then we do slide mechanic
+        if (inputHandler.RW_HoldTriggered || inputHandler.LW_HoldTriggered)
+        {
+            // If Player is holding a wheel and moving another wheel
+            if (inputHandler.RW_MoveValue > 0 && !_rW_HasAppliedForce)
+            {
+                _rW_HasAppliedForce = true;
+
+                acceleration = inputHandler.RW_MoveValue * accelerationRate * transform.forward.normalized;
+            }
+            else if (inputHandler.LW_MoveValue > 0 && !_lW_HasAppliedForce)
+            {
+                _lW_HasAppliedForce = true;
+                
+                acceleration =  inputHandler.LW_MoveValue * accelerationRate * transform.forward.normalized;
+            }
+        }
+        // If Player is not holding wheel
+        else
+        {
+            // If player is not holding a wheel then check to see if both wheels
+            // are being applied the same input direction
+            // Forward
+            if (inputHandler.LW_MoveValue > 0 && inputHandler.RW_MoveValue > 0 && !_lW_HasAppliedForce &&
+                !_rW_HasAppliedForce)
+            {
+                _lW_HasAppliedForce = true;
+                _rW_HasAppliedForce = true;
+
+                acceleration =  inputHandler.LW_MoveValue * accelerationRate * transform.forward.normalized;
+
+            }
+            // Backward
+            else if (inputHandler.LW_MoveValue < 0 && inputHandler.RW_MoveValue < 0 && !_lW_HasAppliedForce &&
+                     !_rW_HasAppliedForce)
+            {
+                _lW_HasAppliedForce = true;
+                _rW_HasAppliedForce = true;
+
+                acceleration =  inputHandler.RW_MoveValue * accelerationRate * transform.forward.normalized;
+            }
+        }
+        
+        // Apply the Forward and Backward force to the change in momentum if 
+        // both wheels where applying the same directional force
+        Vector3 changeInMomentum = ApplyForwardOrBackwardForce(acceleration);
+        _momentum += changeInMomentum * Time.deltaTime;
+        
+        // Debugging If Player can move then move the Player
+        if (MovementOn)
+        {
+            characterController.Move(speed * Time.deltaTime * _momentum);
+        }
+
+        
+        // reset acceleration booleans
+        if (inputHandler.LW_MoveValue == 0 && _lW_HasAppliedForce)
+        {
+            _lW_HasAppliedForce = false;
+            
+        }
+        if (inputHandler.RW_MoveValue == 0 && _rW_HasAppliedForce)
+        {
+            _rW_HasAppliedForce = false;
+        }
+    }
+
     void OnDrawGizmosSelected()
     {
         if (_momentum != null)
@@ -205,6 +293,22 @@ public class PlayerController : MonoBehaviour
             Gizmos.color = Color.blue;
             Gizmos.DrawRay(transform.position, transform.forward);
         }
+    }
+
+    // Allows the momentum vector to track and try to align with the Forward Vector
+    // The dot product differentiates between the forward vector and the reverese vector.
+    private Vector3 ApplyForwardOrBackwardForce(Vector3 force)
+    {
+        // if the dot product is positive then the momentum currently is in the forward
+        // direction. If it is negative then it is in the backward direction
+        // negate the forward.
+        // The extra force between the forward and momentum vectors is also added to get
+        // the momentum to point toward the forward vector.
+        if (Vector3.Dot(_momentum, transform.forward) > 0)
+            return transform.forward.normalized - _momentum.normalized + force;
+        
+        return -transform.forward.normalized - _momentum.normalized + force;
+        
     }
 
     private static void DebugLogInput(string inputName, float value)

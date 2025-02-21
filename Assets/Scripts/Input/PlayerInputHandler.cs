@@ -58,10 +58,10 @@ public class PlayerInputHandler : MonoBehaviour
         RW_MoveAction.performed += ctx => RW_MoveValue = ctx.ReadValue<float>();
         RW_MoveAction.canceled += ctx => RW_MoveValue = 0f;
 
-        LW_HoldAction.performed += ctx => LW_HoldTriggered = true;
+        LW_HoldAction.started += ctx => LW_HoldTriggered = true;
         LW_HoldAction.canceled += ctx => LW_HoldTriggered = false;
         
-        RW_HoldAction.performed += ctx => RW_HoldTriggered = true;
+        RW_HoldAction.started += ctx => RW_HoldTriggered = true;
         RW_HoldAction.canceled += ctx => RW_HoldTriggered = false;
     }
 
