@@ -22,11 +22,19 @@ public class PlayerInputHandler : MonoBehaviour
     private InputAction RW_MoveAction;
     private InputAction LW_HoldAction;
     private InputAction RW_HoldAction;
+
+    private InputAction MouseVerticalAction;
+    private InputAction MouseHorizontalAction;
+    private InputAction MouseScrollAction;
     
     public float LW_MoveValue {get; private set;}
     public float RW_MoveValue {get; private set;}
     public bool LW_HoldTriggered {get; private set;}
     public bool RW_HoldTriggered {get; private set;}
+    
+    public float MouseVerticalValue {get; private set;}
+    public float MouseHorizontalValue {get; private set;}
+    public float MouseScrollValue {get; private set;}
     
     public static PlayerInputHandler Instance { get; private set; }
 
@@ -46,6 +54,10 @@ public class PlayerInputHandler : MonoBehaviour
         RW_MoveAction = PlayerControls.FindActionMap(ActionMapName).FindAction(RW_Move);
         LW_HoldAction = PlayerControls.FindActionMap(ActionMapName).FindAction(LW_Hold);
         RW_HoldAction = PlayerControls.FindActionMap(ActionMapName).FindAction(RW_Hold);
+
+        MouseHorizontalAction = PlayerControls.FindActionMap(ActionMapName).FindAction("MouseX");
+        MouseVerticalAction = PlayerControls.FindActionMap(ActionMapName).FindAction("MouseY");
+        MouseScrollAction = PlayerControls.FindActionMap(ActionMapName).FindAction("MouseScroll");
         
         RegisterInputActions();
     }
@@ -63,6 +75,15 @@ public class PlayerInputHandler : MonoBehaviour
         
         RW_HoldAction.started += ctx => RW_HoldTriggered = true;
         RW_HoldAction.canceled += ctx => RW_HoldTriggered = false;
+        
+        MouseHorizontalAction.performed += ctx => MouseHorizontalValue = ctx.ReadValue<float>();
+        MouseHorizontalAction.canceled += ctx => MouseHorizontalValue = 0f;
+        
+        MouseVerticalAction.performed += ctx => MouseVerticalValue = ctx.ReadValue<float>();
+        MouseVerticalAction.canceled += ctx => MouseVerticalValue = 0f;
+        
+        MouseScrollAction.performed += ctx => MouseScrollValue = ctx.ReadValue<float>();
+        MouseScrollAction.canceled += ctx => MouseScrollValue = 0f;
     }
 
     private void OnEnable()
@@ -71,6 +92,10 @@ public class PlayerInputHandler : MonoBehaviour
         RW_MoveAction.Enable();
         LW_HoldAction.Enable();
         RW_HoldAction.Enable();
+        
+        MouseVerticalAction.Enable();
+        MouseHorizontalAction.Enable();
+        MouseScrollAction.Enable();
     }
 
     private void OnDisable()
@@ -79,6 +104,10 @@ public class PlayerInputHandler : MonoBehaviour
         RW_MoveAction.Disable();
         LW_HoldAction.Disable();
         RW_HoldAction.Disable();
+        
+        MouseVerticalAction.Disable();
+        MouseHorizontalAction.Disable();
+        MouseScrollAction.Disable();
     }
     
     
