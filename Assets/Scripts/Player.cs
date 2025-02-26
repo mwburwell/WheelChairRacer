@@ -27,8 +27,18 @@ public class Player : MonoBehaviour
     private void HandleCharacterInputs()
     {
         PlayerInputs inputs = new PlayerInputs();
-        inputs.MoveAxisForward = _inputHandler.LW_MoveValue;
-        inputs.MoveAxisRight = _inputHandler.RW_MoveValue;
+        inputs.LeftWheelAxisForward = _inputHandler.LW_MoveValue;
+        inputs.RightWheelAxisForward = _inputHandler.RW_MoveValue;
+        
+        // TODO
+        // To replicate the controls through VR controllers I should change
+        // The Inputs to have to hold first then you can move the wheel.
+        inputs.IsLeftWheelMoving = inputs.LeftWheelAxisForward != 0 ? true : false;
+        inputs.IsRightWheelMoving = inputs.RightWheelAxisForward != 0 ? true : false;
+
+        inputs.IsLeftWheelHeld = inputs.IsLeftWheelHeld;
+        inputs.IsRightWheelHeld = inputs.IsRightWheelHeld;
+        
         inputs.CameraRotation = _playerCamera.transform.rotation;
         
         _characterController.SetInputs(ref inputs);

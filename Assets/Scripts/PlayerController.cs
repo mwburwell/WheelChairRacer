@@ -132,8 +132,6 @@ public class PlayerController : MonoBehaviour
             //transform.rotation = Quaternion.Slerp(Quaternion.identity, Quaternion.Euler(0, Vector3.SignedAngle(transform.forward, _centrifugalForce, transform.up), 0), turnSpeed);
             transform.Rotate(Vector3.up,  -Time.deltaTime * (Vector3.SignedAngle(_momentum.normalized, _centrifugalForce.normalized, transform.up)));
         }
-        
-        
     }
     
     private Vector3 _limitWheelTopSpeed(Vector3 force)
